@@ -15,8 +15,10 @@ FILE *fp;
 
 pthread_mutex_t file_mutex;
 pthread_mutex_t tab_mutex;
+
 pthread_cond_t tab_not_full;
 pthread_cond_t tab_not_empty;
+pthread_cond_t end;
 
 
 void *manufacturer_action(void *args);
@@ -60,8 +62,10 @@ int main(int argc, char *argv[]) {
     //file_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_init (&file_mutex, NULL);
     pthread_mutex_init (&tab_mutex, NULL);
+
     pthread_cond_init(&tab_not_full, NULL);
     pthread_cond_init(&tab_not_empty, NULL);
+    pthread_cond_init(&end, NULL);
 
 
     // running manufacturers
@@ -93,8 +97,10 @@ int main(int argc, char *argv[]) {
 
     pthread_mutex_destroy(&file_mutex);
     pthread_mutex_destroy(&tab_mutex);
+
     pthread_cond_destroy(&tab_not_full);
     pthread_cond_destroy(&tab_not_empty);
+    pthread_cond_destroy(&end);
 
     free(man_nrs);
     free(cust_nrs);
@@ -126,17 +132,17 @@ void *manufacturer_action(void *args){
 
     while(read != -1){
         if(WT){
-            printf("Manufacturer nr %d: read string: %s\n", nr, line);
+            printf("Manufacturer nr %d: put line: %s", nr, line);
             fflush(stdout);
         }
 
         pthread_mutex_lock(&tab_mutex);
         while((man_nr == cust_nr -1) || (cust_nr == 0 && man_nr == N-1)){
-            printf("WAITING!!!!!!!!!!!!!!!!!\n");
+            printf("Manufacturer nr %d is waiting, buffer is full!!!\n", nr);
             pthread_cond_wait(&tab_not_full, &tab_mutex);
         }
         strings[man_nr] = line;
-        printf("MAN_NR: %d\n", man_nr);
+        //printf("MAN_NR: %d\n", man_nr);
         man_nr = (man_nr + 1) % N;
         pthread_mutex_unlock(&tab_mutex);
 
@@ -160,5 +166,33 @@ void *customer_action(void *args){
     if(WT){
         printf("Customer nr %d started\n", nr);
     }
+    char *line;
+    int nrtab;
 
+
+
+
+    while(1) {
+
+        pthread_mutex_lock(&tab_mutex);
+        while (man_nr == cust_nr) {
+            printf("Customer nr %d is waiting, buffer is empty!!!\n", nr);
+            pthread_cond_wait(&tab_not_empty, &tab_mutex);
+        }
+        line = strings[cust_nr];
+        strings[cust_nr] = NULL;
+        nrtab = cust_nr;
+        //printf("CUST_NR: %d\n", cust_nr);
+        cust_nr = (cust_nr + 1) % N;
+        pthread_mutex_unlock(&tab_mutex);
+
+        pthread_cond_signal(&tab_not_full);
+
+
+        printf("Customer nr %d got line from index %d: %s", nr, nrtab, line);
+        fflush(stdout);
+
+
+        usleep(1);
+    }
 }
