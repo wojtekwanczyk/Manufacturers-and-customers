@@ -112,7 +112,6 @@ int main(int argc, char *argv[]) {
     free(customers);
     free(manufacturers);
 
-    //usleep(100);
     return 0;
 }
 
@@ -123,7 +122,6 @@ void *manufacturer_action(void *args){
     if(WT){
         printf("Manufacturer nr %d started\n", nr);
     }
-
 
     char *line = NULL;
     size_t n = 0;
@@ -151,7 +149,6 @@ void *manufacturer_action(void *args){
 
         pthread_cond_signal(&tab_not_empty);
 
-        usleep(1);
         // make getline to allocate memory
         line = NULL;
         n = 0;
@@ -162,6 +159,8 @@ void *manufacturer_action(void *args){
 
     if(line)
         free(line);
+
+    return NULL;
 }
 
 void *customer_action(void *args){
@@ -172,11 +171,7 @@ void *customer_action(void *args){
     char *line;
     int nrtab;
 
-
-
-
     while(1) {
-
         pthread_mutex_lock(&tab_mutex);
         while (man_nr == cust_nr) {
             printf("Customer nr %d is waiting, buffer is empty!!!\n", nr);
@@ -191,11 +186,7 @@ void *customer_action(void *args){
 
         pthread_cond_signal(&tab_not_full);
 
-
         printf("Customer nr %d got line from index %d: %s", nr, nrtab, line);
         fflush(stdout);
-
-
-        usleep(1);
     }
 }

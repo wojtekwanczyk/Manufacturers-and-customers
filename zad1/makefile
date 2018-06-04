@@ -12,7 +12,10 @@ clean:
 	rm -f *.o main
 
 
-test:
+test1:
 	./main 10 20 5 categories.txt 20 \> on 0
+
+test2:
+	./main 10 20 5 tadeusz.txt 20 \> on 0
 
 
