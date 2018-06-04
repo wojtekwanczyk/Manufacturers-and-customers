@@ -90,9 +90,14 @@ int main(int argc, char *argv[]) {
         pthread_join(manufacturers[i], NULL);
     }
 
-    // joining customers
+    printf("End of work for manufacturers. Closing program\n");
+    fflush(stdout);
+
+    fclose(fp);
+
+    // cancelling customers
     for(int i=0; i<K; i++){
-        pthread_join(customers[i], NULL);
+        pthread_cancel(customers[i]);
     }
 
     pthread_mutex_destroy(&file_mutex);
@@ -107,9 +112,7 @@ int main(int argc, char *argv[]) {
     free(customers);
     free(manufacturers);
 
-    fclose(fp);
-
-//while(1){}
+    //usleep(100);
     return 0;
 }
 
