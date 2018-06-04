@@ -3,12 +3,21 @@
 #include <memory.h>
 #include <signal.h>
 #include <pthread.h>
+#include <zconf.h>
 
 
 char **strings = NULL;
 int P, K, N, L, WT, nk;
 char *filename, ST;
-int occupied = 0;
+int man_nr = 0;
+int cust_nr = 0;
+FILE *fp;
+
+pthread_mutex_t file_mutex;
+pthread_mutex_t tab_mutex;
+pthread_cond_t tab_not_full;
+pthread_cond_t tab_not_empty;
+
 
 void *manufacturer_action(void *args);
 void *customer_action(void *args);
@@ -46,6 +55,14 @@ int main(int argc, char *argv[]) {
     // check parsing
     printf("%d %d %d %s %d %c %d %d\n", P, K, N, filename, L, ST, WT, nk);
 
+    fp = fopen(filename, "r");
+    strings = malloc(N * sizeof(char*));
+    //file_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_init (&file_mutex, NULL);
+    pthread_mutex_init (&tab_mutex, NULL);
+    pthread_cond_init(&tab_not_full, NULL);
+    pthread_cond_init(&tab_not_empty, NULL);
+
 
     // running manufacturers
     pthread_t *manufacturers = malloc(P * sizeof(pthread_t));
@@ -74,10 +91,17 @@ int main(int argc, char *argv[]) {
         pthread_join(customers[i], NULL);
     }
 
+    pthread_mutex_destroy(&file_mutex);
+    pthread_mutex_destroy(&tab_mutex);
+    pthread_cond_destroy(&tab_not_full);
+    pthread_cond_destroy(&tab_not_empty);
+
     free(man_nrs);
     free(cust_nrs);
     free(customers);
     free(manufacturers);
+
+    fclose(fp);
 
 //while(1){}
     return 0;
@@ -86,12 +110,55 @@ int main(int argc, char *argv[]) {
 
 void *manufacturer_action(void *args){
     int nr = *(int *)args;
-    printf("%d man dzialam\n", nr);
 
+    if(WT){
+        printf("Manufacturer nr %d started\n", nr);
+    }
+
+
+    char *line = NULL;
+    size_t n = 0;
+    ssize_t read;
+
+    //pthread_mutex_lock(&file_mutex);
+    read = getline(&line, &n, fp);
+    //pthread_mutex_unlock(&file_mutex);
+
+    while(read != -1){
+        if(WT){
+            printf("Manufacturer nr %d: read string: %s\n", nr, line);
+            fflush(stdout);
+        }
+
+        pthread_mutex_lock(&tab_mutex);
+        while((man_nr == cust_nr -1) || (cust_nr == 0 && man_nr == N-1)){
+            printf("WAITING!!!!!!!!!!!!!!!!!\n");
+            pthread_cond_wait(&tab_not_full, &tab_mutex);
+        }
+        strings[man_nr] = line;
+        printf("MAN_NR: %d\n", man_nr);
+        man_nr = (man_nr + 1) % N;
+        pthread_mutex_unlock(&tab_mutex);
+
+        pthread_cond_signal(&tab_not_empty);
+
+        usleep(1);
+        // make getline to allocate memory
+        line = NULL;
+        n = 0;
+        //pthread_mutex_lock(&file_mutex);
+        read = getline(&line, &n, fp);
+        //pthread_mutex_unlock(&file_mutex);
+    }
+
+    if(line)
+        free(line);
 }
 
 void *customer_action(void *args){
     int nr = *(int *)args;
-    printf("%d cust dzialam\n", nr);
+    if(WT){
+        printf("Customer nr %d started\n", nr);
+    }
 
 }
