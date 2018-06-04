@@ -2,12 +2,17 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <signal.h>
+#include <pthread.h>
 
 
 char **strings = NULL;
 int P, K, N, L, WT, nk;
 char *filename, ST;
 int occupied = 0;
+
+void *manufacturer_action(void *args);
+void *customer_action(void *args);
+
 
 void end_program(int nr){
     printf("\nEnding program\n");
@@ -42,15 +47,51 @@ int main(int argc, char *argv[]) {
     printf("%d %d %d %s %d %c %d %d\n", P, K, N, filename, L, ST, WT, nk);
 
 
+    // running manufacturers
+    pthread_t *manufacturers = malloc(P * sizeof(pthread_t));
+    int *man_nrs = malloc(P * sizeof(int));
+    for(int i= 0; i < P; i++){
+        man_nrs[i] = i+1;
+        pthread_create(&manufacturers[i], NULL, manufacturer_action, &man_nrs[i]);
+    }
+
+    // running customers
+    pthread_t *customers = malloc(K * sizeof(pthread_t));
+    int *cust_nrs = malloc(K * sizeof(int));
+    for(int i= 0; i < K; i++){
+        cust_nrs[i] = i+1;
+        pthread_create(&customers[i], NULL, customer_action, &cust_nrs[i]);
+    }
 
 
-while(1){}
+    // joining manufacturers
+    for(int i=0; i<P; i++){
+        pthread_join(manufacturers[i], NULL);
+    }
+
+    // joining customers
+    for(int i=0; i<K; i++){
+        pthread_join(customers[i], NULL);
+    }
+
+    free(man_nrs);
+    free(cust_nrs);
+    free(customers);
+    free(manufacturers);
+
+//while(1){}
     return 0;
 }
 
 
-void manufacturer(void *args){
+void *manufacturer_action(void *args){
     int nr = *(int *)args;
+    printf("%d man dzialam\n", nr);
 
+}
+
+void *customer_action(void *args){
+    int nr = *(int *)args;
+    printf("%d cust dzialam\n", nr);
 
 }
