@@ -5,4 +5,5 @@ set(CMAKE_C_STANDARD 99)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -pthread")
 
-add_executable(CLion_zad1 main.c)
+#add_executable(CLion_zad1 main.c main2.c)
+add_executable(CLion_zad1 main2.c)

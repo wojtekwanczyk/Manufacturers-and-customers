@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <zconf.h>
 #include <sys/times.h>
+#include <semaphore.h>
 
 
 char **strings = NULL;
@@ -14,11 +15,11 @@ int man_nr = 0;
 int cust_nr = 0;
 FILE *fp;
 
-pthread_mutex_t file_mutex;
-pthread_mutex_t tab_mutex;
 
-pthread_cond_t tab_not_full;
-pthread_cond_t tab_not_empty;
+sem_t tab_sem;
+
+sem_t tab_not_full;
+sem_t tab_not_empty;
 
 void *manufacturer_action(void *args);
 void *customer_action(void *args);
@@ -66,12 +67,8 @@ int main(int argc, char *argv[]) {
 
     fp = fopen(filename, "r");
     strings = malloc(N * sizeof(char*));
-    //file_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_init (&file_mutex, NULL);
-    pthread_mutex_init (&tab_mutex, NULL);
+    sem_init(&tab_sem, 0, 1);
 
-    pthread_cond_init(&tab_not_full, NULL);
-    pthread_cond_init(&tab_not_empty, NULL);
 
 
     // running manufacturers
@@ -122,11 +119,7 @@ int main(int argc, char *argv[]) {
 
     fclose(fp);
 
-    pthread_mutex_destroy(&file_mutex);
-    pthread_mutex_destroy(&tab_mutex);
-
-    pthread_cond_destroy(&tab_not_full);
-    pthread_cond_destroy(&tab_not_empty);
+    sem_destroy(&tab_sem);
 
     free(man_nrs);
     free(cust_nrs);
@@ -156,13 +149,15 @@ void *manufacturer_action(void *args){
     while(read != -1){
 
 
-        pthread_mutex_lock(&tab_mutex);
+        sem_wait(&tab_sem);
         while((man_nr == cust_nr -1) || (cust_nr == 0 && man_nr == N-1)){
             if(WT){
                 printf("Manufacturer nr %d is waiting, buffer is full!!!\n", nr);
                 fflush(stdout);
             }
-            pthread_cond_wait(&tab_not_full, &tab_mutex);
+            sem_post(&tab_sem);
+            sem_wait(&tab_not_full);
+            sem_wait(&tab_sem);
         }
         if(WT){
             printf("Manufacturer nr %d put line on index %d: %s", nr, man_nr, line);
@@ -171,9 +166,9 @@ void *manufacturer_action(void *args){
         strings[man_nr] = line;
         man_nr = (man_nr + 1) % N;
 
-        pthread_mutex_unlock(&tab_mutex);
+        sem_post(&tab_sem);
 
-        pthread_cond_signal(&tab_not_empty);
+        sem_post(&tab_not_empty);
 
         // make getline to allocate memory
         line = NULL;
@@ -199,13 +194,15 @@ void *customer_action(void *args){
     size_t len;
 
     while(1) {
-        pthread_mutex_lock(&tab_mutex);
+        sem_wait(&tab_sem);
         while (man_nr == cust_nr) {
             if(WT){
                 printf("Customer nr %d is waiting, buffer is empty!!!\n", nr);
                 fflush(stdout);
             }
-            pthread_cond_wait(&tab_not_empty, &tab_mutex);
+            sem_post(&tab_sem);
+            sem_wait(&tab_not_empty);
+            sem_wait(&tab_sem);
         }
         line = strings[cust_nr];
         strings[cust_nr] = NULL;
@@ -220,12 +217,12 @@ void *customer_action(void *args){
             fflush(stdout);
         }
         cust_nr = (cust_nr + 1) % N;
-        pthread_mutex_unlock(&tab_mutex);
+        sem_post(&tab_sem);
 
         // free memory allocated by getline
         if(line)
             free(line);
 
-        pthread_cond_signal(&tab_not_full);
+        sem_post(&tab_not_full);
     }
 }
