@@ -68,6 +68,8 @@ int main(int argc, char *argv[]) {
     fp = fopen(filename, "r");
     strings = malloc(N * sizeof(char*));
     sem_init(&tab_sem, 0, 1);
+    sem_init(&tab_not_full, 0, 1);
+    sem_init(&tab_not_empty, 0, 1);
 
 
 
@@ -120,6 +122,9 @@ int main(int argc, char *argv[]) {
     fclose(fp);
 
     sem_destroy(&tab_sem);
+    sem_destroy(&tab_not_full);
+    sem_destroy(&tab_not_empty);
+
 
     free(man_nrs);
     free(cust_nrs);
