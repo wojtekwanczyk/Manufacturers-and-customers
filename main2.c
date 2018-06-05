@@ -152,8 +152,6 @@ void *manufacturer_action(void *args){
     //pthread_mutex_unlock(&file_mutex);
 
     while(read != -1){
-
-
         sem_wait(&tab_sem);
         while((man_nr == cust_nr -1) || (cust_nr == 0 && man_nr == N-1)){
             if(WT){
@@ -171,9 +169,8 @@ void *manufacturer_action(void *args){
         strings[man_nr] = line;
         man_nr = (man_nr + 1) % N;
 
-        sem_post(&tab_sem);
-
         sem_post(&tab_not_empty);
+        sem_post(&tab_sem);
 
         // make getline to allocate memory
         line = NULL;
@@ -222,12 +219,12 @@ void *customer_action(void *args){
             fflush(stdout);
         }
         cust_nr = (cust_nr + 1) % N;
+        sem_post(&tab_not_full);
         sem_post(&tab_sem);
 
         // free memory allocated by getline
         if(line)
             free(line);
 
-        sem_post(&tab_not_full);
     }
 }
